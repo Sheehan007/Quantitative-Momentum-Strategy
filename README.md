@@ -1,2 +1,2 @@
 # Quantitative-Momentum-Strategy
-Developed a Quantitative Momentum Strategy in Python to identify high-momentum stocks within the S&amp;P 500 using Yahoo Finance data
+Developed a Quantitative Momentum Strategy in Python to identify high-momentum stocks within the S&amp;P 500 using Yahoo Finance data. The strategy prioritized 'high-quality' momentum stocks with consistent, steady returns over multiple periods (1-month, 3-month, 6-month, and 1-year) and excluded 'low-quality' momentum stocks subject to short-term volatility. Used data analysis techniques to compute momentum percentile scores, rank stocks, and optimize portfolio allocation. Final output included an Excel report of selected stocks with automated formatting using XlsxWriter for clear presentation. 

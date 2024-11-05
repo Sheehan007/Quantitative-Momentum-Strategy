@@ -1,0 +1,94 @@
+# Quantitative Momentum Strategy
+# "Momentum investing" means investing in the stocks that have increased in price the most.
+# we're going to build an investing strategy that selects the 50 stocks with the highest price momentum. 
+# From there, we will calculate recommended trades for an equal-weight portfolio of these 50 stocks.
+
+# 1. Library imports 
+import numpy as np 
+import pandas as pd
+import requests 
+from scipy import stats
+import math
+import matplotlib.pyplot as plt
+import yfinance as yf
+
+# 2. Fetching the S&P 500 tickers from wikipedia 
+url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+sp500_df = pd.read_html(url)[0]
+tickers = sp500_df['Symbol'].tolist()
+data = yf.download(tickers, start='2012-01-01', end='2024-01-01')['Adj Close']
+data.head()
+
+# 3. Calculating Momentum metrics
+# calculating momentum returns for different periods (1-month, 3-month, 6-month, 1-year). 
+# This will distinguish high-quality momentum
+# There are 21 trading day in a month, 63 in three months, 126 in six months, and 252 in one year. 
+returns_df = pd.DataFrame()
+returns_df['1-month'] = data.pct_change(21).iloc[-1] 
+returns_df['3-month'] = data.pct_change(63).iloc[-1] 
+returns_df['6-month'] = data.pct_change(126).iloc[-1] 
+returns_df['1-year'] = data.pct_change(252).iloc[-1] 
+
+# Ranking stocks by High-Quality Momentum (HQM)
+for period in ['1-month','3-month','6-month','1-year']:
+    returns_df[f'{period}_rank'] = returns_df[period].rank(ascending=False)
+    
+returns_df['HQM_score'] = returns_df[['1-month','3-month','6-month','1-year']].mean(axis=1)
+
+# 4. Selecting the top 50 stocks
+top_50_stocks = returns_df.nlargest(50, 'HQM_score')
+
+# 5. Calculating the number of shares to buy
+def calculate_shares_to_buy (df, portfolio_value = 10000000):
+    position_size = portfolio_value / len(df)
+    df['Share_Price'] = data.iloc[-1]
+    df['Shares_to_buy'] = position_size / df['Share_Price']
+    return df
+
+top_50_stocks = calculate_shares_to_buy(top_50_stocks)
+print (top_50_stocks[['HQM_score','Share_Price','Shares_to_buy']])
+
+import numpy as np 
+import pandas as pd
+import requests 
+from scipy import stats
+import math
+import matplotlib.pyplot as plt
+import yfinance as yf
+
+returns_df = pd.DataFrame()
+returns_df['1-month'] = data.pct_change(21).iloc[-1] 
+returns_df['3-month'] = data.pct_change(63).iloc[-1] 
+returns_df['6-month'] = data.pct_change(126).iloc[-1] 
+returns_df['1-year'] = data.pct_change(252).iloc[-1] 
+
+# Now we have the HQM Score of the top 50 stocks and know the No of shares we are going to buy with a given portfolio value. 
+# Now we need to represent the data in an excel file using xlsxwriter. 
+# We will put string, dollar and integer formats in the file. 
+import xlsxwriter
+writer = pd.ExcelWriter('momentum_strategy.xlsx', engine='xlsxwriter')
+returns_df.to_excel(writer, sheet_name='Momentum Strategy', index = False)
+
+background_color = '#0a0a23'
+font_color = '#ffffff'
+
+string_template = writer.book.add_format({'font_color': font_color,'bg_color': 
+                                          background_color,'border': 1})
+dollar_template = writer.book.add_format({'num_format':'$0.00','font_color': font_color,'bg_color': 
+                                          background_color,'border': 1})
+integer_template = writer.book.add_format({'num_format':'0','font_color': font_color,'bg_color': 
+                                           background_color,'border': 1})
+percent_template = writer.book.add_format({'num_format':'0.0%','font_color': font_color,'bg_color': 
+                                           background_color,'border': 1})
+
+column_formats = { 'A': ['Ticker', string_template],'B': ['Price', dollar_template],
+                   'C': ['Number of Shares to Buy', integer_template],'D': ['One-Year Price Return', percent_template],
+                   'E': ['Six-month Price Return', percent_template],'F': ['Three-month Price Return', percent_template],
+                   'G': ['One-month Price Return', percent_template]
+                 }
+
+for column in column_formats.keys():
+    writer.sheets['Momentum Strategy'].set_column(f'{column}:{column}', 20, column_formats[column][1])
+    writer.sheets['Momentum Strategy'].write(f'{column}1', column_formats[column][0], string_template)
+    
+writer.save()
